@@ -75,6 +75,11 @@ The output directory contains:
 Run the same command again with the same output directory to resume. A valid
 checkpoint is revalidated locally and is not sent to Vertex AI again.
 
+On POSIX systems, output and checkpoint directories are forced to owner-only
+mode `0700`; checkpoints, `ocr.txt`, `metrics.json`, and atomic temporary files
+use mode `0600`. Windows does not provide equivalent protection through POSIX
+mode bits, so Windows operators must configure suitable directory and file ACLs.
+
 ## Data flow and privacy
 
 1. `pdftoppm` renders each PDF page to JPEG bytes locally.

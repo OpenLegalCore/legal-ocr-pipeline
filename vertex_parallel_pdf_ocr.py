@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -60,23 +61,46 @@ def validate_page_response(text: str, page: int) -> str:
     return body
 
 
+def ensure_private_directory(path: Path) -> None:
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if os.name == "posix":
+        path.chmod(0o700)
+
+
 def atomic_write_text(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    ensure_private_directory(path.parent)
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        text=True,
+    )
+    temporary = Path(temporary_name)
     try:
-        with temporary.open("w", encoding="utf-8") as stream:
+        if os.name == "posix":
+            os.fchmod(descriptor, 0o600)
+        stream = os.fdopen(descriptor, "w", encoding="utf-8")
+        descriptor = -1
+        with stream:
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        if os.name == "posix":
+            path.chmod(0o600)
     finally:
-        if temporary.exists():
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
             temporary.unlink()
+        except FileNotFoundError:
+            pass
 
 
 class Checkpoints:
     def __init__(self, output_dir: Path) -> None:
         self.directory = output_dir / "checkpoints"
+        ensure_private_directory(self.directory)
 
     def path(self, page: int) -> Path:
         return self.directory / f"page-{page:06d}.txt"
@@ -217,7 +241,7 @@ async def run_ocr(
         raise ValueError("input must be one existing PDF")
     if output_dir.exists() and not output_dir.is_dir():
         raise ValueError("output path must be a directory")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    ensure_private_directory(output_dir)
 
     total_pages = count_pages(pdf_path)
     if total_pages > MAX_REQUESTS:

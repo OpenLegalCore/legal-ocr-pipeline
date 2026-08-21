@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -139,6 +141,41 @@ class OfflineOcrTests(unittest.TestCase):
             self.assertTrue(rendered)
             self.assertTrue(rendered.startswith(b"\xff\xd8"))
             self.assertFalse((Path.cwd() / "-.jpg").exists())
+
+    @unittest.skipUnless(os.name == "posix", "POSIX mode check")
+    def test_output_directories_are_owner_only_on_posix(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "output"
+            checkpoints = output / "checkpoints"
+            checkpoints.mkdir(parents=True)
+            output.chmod(0o755)
+            checkpoints.chmod(0o755)
+            provider = MockProvider({1: [response(1, "one")]})
+
+            self.run_case(root, provider, 1)
+
+            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(checkpoints.stat().st_mode), 0o700)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX mode check")
+    def test_private_artifacts_are_owner_only_on_posix(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            provider = MockProvider({1: [response(1, "one")]})
+
+            self.run_case(root, provider, 1)
+
+            output = root / "output"
+            private_files = [
+                output / "checkpoints" / "page-000001.txt",
+                output / "ocr.txt",
+                output / "metrics.json",
+            ]
+            for path in private_files:
+                with self.subTest(path=path):
+                    self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertEqual(list(output.rglob(".*.tmp")), [])
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ from pypdf import PdfWriter
 import build_manual_review as review
 
 
-CORE_SHA256 = "9bbeeecfb6c3c87ddc16c879bb2fd118f544bd3b532a584d1766507e86fd1209"
+CORE_SHA256 = "db1e966a0ba3fdb7264bd69adf155becd2772f01825c946b8a9da87bc2fc7e6d"
 
 
 def make_pdf(path: Path, pages: int) -> None:
