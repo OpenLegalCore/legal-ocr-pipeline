@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Manual OCR review</title>
+  <style>
+    :root { color-scheme:dark; --bg:#0b1018; --panel:#141c28; --line:#2c394b; --ink:#eef4fb; --muted:#9aabc0; --accent:#77b9ff; --warn:#ffc76b; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,sans-serif; }
+    button,input,select,textarea { font:inherit; color:inherit; background:#101824; border:1px solid var(--line); border-radius:7px; }
+    button { padding:.5rem .75rem; cursor:pointer; }
+    button:hover { border-color:var(--accent); }
+    button:disabled { opacity:.4; cursor:not-allowed; }
+    input,select { padding:.46rem .55rem; }
+    header { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; padding:.7rem 1rem; background:rgba(11,16,24,.97); border-bottom:1px solid var(--line); }
+    h1 { margin:0 auto 0 0; font-size:1rem; }
+    .group { display:flex; gap:.4rem; align-items:center; }
+    #pageInput { width:5rem; }
+    #pageLabel { min-width:7rem; text-align:center; }
+    #mandatory { display:none; padding:.25rem .5rem; border:1px solid #876120; border-radius:999px; color:var(--warn); background:#2b2110; font-size:.78rem; font-weight:750; }
+    #storageWarning { display:none; width:100%; color:#ffd59b; font-size:.82rem; }
+    main { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr); gap:.8rem; padding:.8rem; height:calc(100vh - 66px); }
+    section { min-width:0; border:1px solid var(--line); border-radius:10px; background:var(--panel); overflow:hidden; }
+    .panel-head { min-height:48px; display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; padding:.55rem .7rem; border-bottom:1px solid var(--line); }
+    .viewer { height:calc(100% - 49px); overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:1rem; background:#262b32; }
+    .viewer.fit { align-items:center; }
+    .viewer img { display:block; background:#fff; box-shadow:0 10px 32px rgba(0,0,0,.35); }
+    .viewer.fit img { max-width:100%; max-height:100%; width:auto; height:auto; }
+    .text-panel { display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+    #ocrText { margin:0; padding:1rem; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font:14px/1.55 ui-monospace,monospace; background:#0d141f; }
+    .review { border-top:1px solid var(--line); padding:.75rem; display:grid; grid-template-columns:11rem 1fr; gap:.65rem; align-items:start; }
+    .field { display:grid; gap:.3rem; }
+    .field label,.hint,#progress { color:var(--muted); font-size:.82rem; }
+    textarea { resize:vertical; min-height:76px; padding:.6rem; }
+    .result { display:flex; flex-wrap:wrap; gap:.65rem; align-items:center; grid-column:1/-1; padding-top:.2rem; }
+    #finalStatus { font-weight:800; }
+    #importFile { max-width:14rem; }
+    @media (max-width:900px) { header { position:static; } main { grid-template-columns:1fr; height:auto; } section { min-height:70vh; } .viewer { height:62vh; } .review { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Manual OCR review</h1>
+    <span id="mandatory">MANDATORY</span>
+    <div class="group">
+      <button id="prev" type="button">← Previous</button>
+      <strong id="pageLabel"></strong>
+      <button id="next" type="button">Next →</button>
+      <label for="pageInput" class="hint">Go to</label>
+      <input id="pageInput" type="number" min="1" max="@@PAGE_COUNT@@" value="1">
+      <button id="go" type="button">Go</button>
+    </div>
+    <div class="group">
+      <label for="filter" class="hint">Filter</label>
+      <select id="filter"><option>ALL</option><option>MANDATORY</option><option>UNREVIEWED</option><option>PASS</option><option>MINOR</option><option>ISSUE</option><option>UNCERTAIN</option></select>
+    </div>
+    <span id="progress"></span>
+    <div id="storageWarning">localStorage is unavailable. Export JSON before closing this page.</div>
+  </header>
+  <main>
+    <section>
+      <div class="panel-head">
+        <strong>Source page</strong>
+        <div class="group">
+          <button id="zoomOut" type="button">−</button>
+          <button id="fit" type="button">Fit</button>
+          <button id="zoomIn" type="button">+</button>
+          <span id="zoomLabel" class="hint">FIT</span>
+        </div>
+        <span class="hint">Only the displayed image is loaded.</span>
+      </div>
+      <div id="viewer" class="viewer fit"><img id="pageImage" loading="lazy" alt="Rendered PDF page"></div>
+    </section>
+    <section class="text-panel">
+      <div class="panel-head"><strong>OCR text</strong><span class="hint">Compare against the complete source page.</span></div>
+      <pre id="ocrText"></pre>
+      <div class="review">
+        <div class="field">
+          <label for="status">Page status</label>
+          <select id="status"><option>UNREVIEWED</option><option>PASS</option><option>MINOR</option><option>ISSUE</option><option>UNCERTAIN</option></select>
+        </div>
+        <div class="field">
+          <label for="note">Page note</label>
+          <textarea id="note" placeholder="Local review note"></textarea>
+        </div>
+        <div class="result">
+          <label><input id="confirmed" type="checkbox"> I explicitly confirm this review result.</label>
+          <span>Final status: <strong id="finalStatus">IN_PROGRESS</strong></span>
+          <label class="hint" for="importFile">Import result</label>
+          <input id="importFile" type="file" accept="application/json">
+          <button id="export" type="button">Export manual-review-result.json</button>
+        </div>
+        <div class="hint result">This workflow status is based only on reviewer choices; it is not an automatic content judgment.</div>
+      </div>
+    </section>
+  </main>
+  <script>
+    "use strict";
+    const PAGE_DATA = @@PAGE_DATA@@;
+    const MANDATORY = @@MANDATORY@@;
+    const PDF_SHA = @@PDF_SHA@@;
+    const OCR_SHA = @@OCR_SHA@@;
+    const PAGE_COUNT = @@PAGE_COUNT@@;
+    const SCHEMA = "manual-ocr-review-result";
+    const SCHEMA_VERSION = 1;
+    const ALLOWED = new Set(["UNREVIEWED","PASS","MINOR","ISSUE","UNCERTAIN"]);
+    const STORAGE_KEY = `manual-ocr-review:v1:${PDF_SHA}:${OCR_SHA}`;
+    let state = {pages:{}, confirmed:false};
+    let current = 1, fitMode = true, zoom = 1;
+    const el = id => document.getElementById(id);
+
+    function pageState(page) {
+      const value = state.pages[String(page)] || {};
+      return {status:ALLOWED.has(value.status) ? value.status : "UNREVIEWED", note:typeof value.note === "string" ? value.note : ""};
+    }
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const value = JSON.parse(raw);
+          if (value && typeof value.pages === "object") state = {pages:value.pages, confirmed:value.confirmed === true};
+        }
+      } catch (_) { el("storageWarning").style.display = "block"; }
+    }
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+      catch (_) { el("storageWarning").style.display = "block"; }
+    }
+    function finalStatus() {
+      const statuses = Array.from({length:PAGE_COUNT}, (_,i) => pageState(i+1).status);
+      if (statuses.includes("ISSUE")) return "FAIL";
+      if (!state.confirmed || statuses.includes("UNCERTAIN")) return "IN_PROGRESS";
+      if (statuses.every(value => ["PASS","MINOR"].includes(value))) return "FULL_PASS";
+      if (MANDATORY.every(page => ["PASS","MINOR"].includes(statuses[page-1]))) return "SAMPLE_PASS";
+      return "IN_PROGRESS";
+    }
+    function updateProgress() {
+      const statuses = Array.from({length:PAGE_COUNT}, (_,i) => pageState(i+1).status);
+      const reviewed = statuses.filter(value => value !== "UNREVIEWED").length;
+      const required = MANDATORY.filter(page => ["PASS","MINOR"].includes(statuses[page-1])).length;
+      el("progress").textContent = `${reviewed}/${PAGE_COUNT} reviewed · ${required}/${MANDATORY.length} mandatory PASS/MINOR`;
+      el("finalStatus").textContent = finalStatus();
+    }
+    function storeCurrent() {
+      state.pages[String(current)] = {status:el("status").value, note:el("note").value};
+      state.confirmed = el("confirmed").checked;
+      saveState(); updateProgress();
+    }
+    function imagePath(page) {
+      const width = Math.max(4, String(PAGE_COUNT).length);
+      return `pages/page-${String(page).padStart(width,"0")}.jpg`;
+    }
+    function showPage(page) {
+      if (!Number.isInteger(page) || page < 1 || page > PAGE_COUNT) return;
+      current = page;
+      const review = pageState(page);
+      el("status").value = review.status;
+      el("note").value = review.note;
+      el("pageInput").value = String(page);
+      el("pageLabel").textContent = `Page ${page} / ${PAGE_COUNT}`;
+      el("mandatory").style.display = MANDATORY.includes(page) ? "inline-block" : "none";
+      el("ocrText").textContent = PAGE_DATA[page-1];
+      el("ocrText").scrollTop = 0;
+      el("pageImage").src = imagePath(page);
+      el("viewer").scrollTo(0,0);
+      updateProgress();
+    }
+    function filteredPages() {
+      const filter = el("filter").value;
+      return Array.from({length:PAGE_COUNT}, (_,i) => i+1).filter(page =>
+        filter === "ALL" || (filter === "MANDATORY" ? MANDATORY.includes(page) : pageState(page).status === filter));
+    }
+    function move(delta) {
+      const pages = filteredPages();
+      if (!pages.length) return;
+      const at = pages.indexOf(current);
+      const index = at < 0 ? (delta > 0 ? 0 : pages.length-1) : (at + delta + pages.length) % pages.length;
+      showPage(pages[index]);
+    }
+    function applyZoom() {
+      el("viewer").classList.toggle("fit", fitMode);
+      el("pageImage").style.width = fitMode ? "" : `${Math.round(zoom*100)}%`;
+      el("zoomLabel").textContent = fitMode ? "FIT" : `${Math.round(zoom*100)}%`;
+    }
+    function resultDocument() {
+      const pages = Array.from({length:PAGE_COUNT}, (_,i) => {
+        const page = i+1, review = pageState(page);
+        return {page, mandatory:MANDATORY.includes(page), status:review.status, note:review.note};
+      });
+      return {schema:SCHEMA, schema_version:SCHEMA_VERSION, pdf_sha256:PDF_SHA, ocr_sha256:OCR_SHA,
+        page_count:PAGE_COUNT, mandatory_pages:MANDATORY, pages,
+        reviewed_pages:pages.filter(page => page.status !== "UNREVIEWED").length,
+        minor_count:pages.filter(page => page.status === "MINOR").length,
+        reviewer_confirmed:state.confirmed, exported_at:new Date().toISOString(), final_status:finalStatus()};
+    }
+    function exportResult() {
+      storeCurrent();
+      const blob = new Blob([JSON.stringify(resultDocument(),null,2)+"\n"], {type:"application/json"});
+      const url = URL.createObjectURL(blob), link = document.createElement("a");
+      link.href = url; link.download = "manual-review-result.json"; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    async function importResult(event) {
+      try {
+        const value = JSON.parse(await event.target.files[0].text());
+        if (value.schema !== SCHEMA || value.schema_version !== SCHEMA_VERSION || value.pdf_sha256 !== PDF_SHA ||
+            value.ocr_sha256 !== OCR_SHA || value.page_count !== PAGE_COUNT || !Array.isArray(value.pages) ||
+            value.pages.length !== PAGE_COUNT || JSON.stringify(value.mandatory_pages) !== JSON.stringify(MANDATORY) ||
+            typeof value.reviewer_confirmed !== "boolean") throw new Error("Result does not match this package.");
+        const pages = {};
+        for (const item of value.pages) {
+          if (!Number.isInteger(item.page) || item.page < 1 || item.page > PAGE_COUNT || pages[String(item.page)] || !ALLOWED.has(item.status) || typeof item.note !== "string") throw new Error("Invalid page result.");
+          pages[String(item.page)] = {status:item.status, note:item.note};
+        }
+        state = {pages, confirmed:value.reviewer_confirmed}; saveState(); el("confirmed").checked = state.confirmed; showPage(current);
+      } catch (error) { window.alert(error.message); }
+      event.target.value = "";
+    }
+    el("prev").addEventListener("click", () => move(-1));
+    el("next").addEventListener("click", () => move(1));
+    el("go").addEventListener("click", () => showPage(Number.parseInt(el("pageInput").value,10)));
+    el("pageInput").addEventListener("keydown", event => { if (event.key === "Enter") showPage(Number.parseInt(event.target.value,10)); });
+    el("filter").addEventListener("change", () => { const pages=filteredPages(); if (pages.length) showPage(pages[0]); });
+    el("status").addEventListener("change", storeCurrent);
+    el("note").addEventListener("input", storeCurrent);
+    el("confirmed").addEventListener("change", storeCurrent);
+    el("fit").addEventListener("click", () => { fitMode=true; applyZoom(); });
+    el("zoomIn").addEventListener("click", () => { fitMode=false; zoom=Math.min(3,zoom+.25); applyZoom(); });
+    el("zoomOut").addEventListener("click", () => { fitMode=false; zoom=Math.max(.5,zoom-.25); applyZoom(); });
+    el("export").addEventListener("click", exportResult);
+    el("importFile").addEventListener("change", importResult);
+    loadState(); el("confirmed").checked=state.confirmed; applyZoom(); showPage(1);
+  </script>
+</body>
+</html>

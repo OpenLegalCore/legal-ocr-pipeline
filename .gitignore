@@ -1,0 +1,70 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+*.pyo
+
+# Local configuration, credentials, and private keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+client_secret*.json
+*credentials*.json
+service-account*.json
+service_account*.json
+application_default_credentials.json
+
+# Confidential source documents and generated OCR artifacts
+*.pdf
+ocr.txt
+*.ocr.txt
+metrics.json
+*.metrics.json
+*.ocr.metrics.json
+*.ocr.checkpoint
+*.ocr.checkpoint/
+*.checkpoint
+*.checkpoint/
+*.checkpoint.json
+checkpoint/
+checkpoints/
+*.full-run.guard.json
+
+# Temporary and generated output trees
+tmp/
+artifacts/
+outputs/
+logs/
+renders/
+rendered-pages/
+rendered_pages/
+crops/
+manual-review/
+manual-review-*/
+manual-review-result.json
+*.manual-review-result.json
+
+# Rendered pages and temporary image crops
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.tif
+*.tiff
+*.bmp
+*.pgm
+*.ppm
+
+# Logs and operating-system metadata
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini

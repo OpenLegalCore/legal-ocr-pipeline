@@ -1,0 +1,4 @@
+# Direct runtime dependencies imported by vertex_parallel_pdf_ocr.py.
+# The offline regression tests use only the Python standard library.
+google-genai==2.18.1
+pypdf==6.16.1
