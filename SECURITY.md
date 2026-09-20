@@ -14,10 +14,9 @@ Use GitHub's private **Report a vulnerability** channel:
 
 <https://github.com/OpenLegalCore/legal-ocr-pipeline/security/advisories/new>
 
-If GitHub does not present a private reporting form, open a public issue titled
-`Private security contact requested` without including technical details,
-documents, credentials, identifiers, logs, or personal data. A maintainer will
-establish a private channel.
+If GitHub does not present a private reporting form, email
+[security@openlegalcore.org](mailto:security@openlegalcore.org), preferably
+with the subject `OpenLegalCore security report: Legal OCR Pipeline`.
 
 Include only information needed to assess the problem:
 
@@ -33,6 +32,9 @@ Maintainers will acknowledge reports as soon as practical, investigate them
 privately, and coordinate remediation and disclosure according to severity and
 available capacity. This project currently offers no fixed response-time SLA or
 bug bounty.
+
+The project-wide reporting policy is published at
+[openlegalcore.org/security](https://openlegalcore.org/security/).
 
 ## Security boundaries
 

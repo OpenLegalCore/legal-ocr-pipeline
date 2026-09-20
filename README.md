@@ -5,15 +5,24 @@
 
 **A small, auditable, and resumable OCR building block for legal-document workflows.**
 
+| Public record | Current value |
+|---|---|
+| Component status | Public, production-verified |
+| Current release | [v0.1.2](https://github.com/OpenLegalCore/legal-ocr-pipeline/tree/v0.1.2) |
+| Licence | [Apache-2.0](LICENSE) |
+| Project component record | [Legal OCR Pipeline](https://openlegalcore.org/components/legal-ocr-pipeline/) |
+| Acceptance record | [Recorded acceptance](docs/RECORDED_ACCEPTANCE.md) |
+
 The pipeline transcribes one image-based PDF into page-oriented plain text with
 Gemini on Google Vertex AI. It renders and submits pages independently, validates
 every response, checkpoints completed pages, and publishes the combined OCR only
 after every page succeeds.
 
-This repository is the first public component of OpenLegalCore: *building the
-open-source legal-tech engine*. It can be embedded in document-processing
-workflows or user interfaces, including Open WebUI-based systems, but it does
-not ship a web service, an Open WebUI connector, or a legal-decision system.
+This repository is one of the public components in the wider
+[OpenLegalCore component register](https://openlegalcore.org/components/). It
+can be embedded in document-processing workflows or user interfaces, including
+Open WebUI-based systems, but it does not ship a web service, an Open WebUI
+connector, or a legal-decision system.
 
 ## Why this pipeline
 
